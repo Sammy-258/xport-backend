@@ -225,9 +225,9 @@
             session_start();
 
             if(isset($_SESSION["admin_data"])){
-                $company_user_name = $_SESSION["admin_data"];
+                $company_data = $_SESSION["admin_data"];
                 $adminWithdraw = new Model($this->pdo);
-                $adminWithdraw = $adminWithdraw->adminWithdraw($data, $company_user_name);
+                $adminWithdraw = $adminWithdraw->adminWithdraw($data, $company_data);
 
                 echo json_encode($adminWithdraw);
             }else{
@@ -240,5 +240,126 @@
             }
         }
 
+        public function calculatorOne($file, $data){
+            $calculatorOne = new Model($this->pdo);
+            $calculatorOne = $calculatorOne->calculatorOne($data);
+
+            if(isset($calculatorOne["status"])){
+                echo json_encode($calculatorOne);
+            }else{
+                session_start();
+                $_SESSION["user_order_good"] = $data["good"];
+                echo json_encode($calculatorOne);
+            }
+            
+        }
+
+        public function mainCalculator($file, $data){
+            session_start();
+      
+            if(isset($_SESSION["calculator"])){
+                $weight = intval($data["weight"]);
+                $space = intval($data["space"]);
+                $distance = intval($data["distance"]);
+
+                $weight_price = intval($_SESSION["calculator"]["weight_price"]);
+                $space_price = intval($_SESSION["calculator"]["space_price"]);
+                $distance_price = intval($_SESSION["calculator"]["distance_price"]);
+
+                $present_weight_price = $weight * $weight_price;
+                $present_space_price = $space * $space_price;
+                $present_distance_price = $distance * $distance_price;
+
+                $total = $present_weight_price + $present_space_price + $present_distance_price;
+
+                $response = array(
+                    'status' => 'success',
+                    'total' => $total,
+                    'present_weight_price' => $present_weight_price,
+                    'present_space_price' => $present_space_price,
+                    'present_distance_price' => $present_distance_price
+                );
+
+                $_SESSION["calculated_price"] = $response;
+
+                echo json_encode($response);
+            }else{
+                header("HTTP/1.0 404 Not Found");
+                $response = array(
+                  'status' => 'failed',
+                  'message' => 'ruturn back to the initial spot'
+                );
+      
+              echo json_encode($response);
+            }
+        }
+
+        public function checkout($file, $data){
+            session_start();
+
+            if(isset($_SESSION["user_data"])){
+                if(isset($_SESSION["calculated_price"])){
+                    $good = $_SESSION["user_order_good"];
+                    $email = $_SESSION["user_data"]["email"];
+                    $price = $_SESSION["calculated_price"]["total"];
+                    $currency = $data["currency"];
+                    $company_user_name = $_SESSION["calculator"]["company_user_name"];
+                    $company_email = $_SESSION["calculator"]["company_email"];
+
+                    $generateTrackingID  = $this->generateTrackingID($good, $email, $price);
+
+                    // $checkout = new Model($thi->pdo);
+                    // $checkout = $checkout->checkout($good, $email, $price, $currency, $generateTrackingID, $company_user_name, $company_email);
+
+                    $response = array(
+                        'good' => $good,
+                        'email' => $email,
+                        'price' => $price,
+                        'currency' => $currency,
+                        'company_user_name' => $company_user_name,
+                        'company_email' => $company_email
+                    );
+
+                    echo json_encode($response);
+
+
+                }else{
+                    header("HTTP/1.0 409 Conflict");
+                    $response = array(
+                        'status' => 'failed',
+                        'message' => 'kindly create a calculated method'
+                    );
+
+                    echo json_encode($response);
+                }
+                
+            }else{
+                header("HTTP/1.0 404 Not Found");
+                $response = array(
+                    'status' => 'failed',
+                    'message' => 'kindly return back to the user page.'
+                );
+
+                echo json_encode($response);
+            }
+        }
+
+        private function generateTrackingID($good, $email, $price) {
+            // Concatenate parameters into a string
+            $concatenatedString = $good . $email . $price;
+        
+            // Add a random five-digit number
+            $randomFiveDigits = str_pad(mt_rand(0, 99999), 5, '0', STR_PAD_LEFT);
+            $concatenatedString .= $randomFiveDigits;
+        
+            // Add a random three-digit number
+            $randomThreeDigits = str_pad(mt_rand(0, 999), 3, '0', STR_PAD_LEFT);
+            $concatenatedString .= $randomThreeDigits;
+        
+            // Hash the resulting string using SHA-256
+            $hashedTrackingID = hash('sha256', $concatenatedString);
+        
+            return $hashedTrackingID;
+        }
     }
     

@@ -9,6 +9,128 @@ class model
         $this->pdo = $pdo;
     }
 
+    public function userRegistration($data){
+        
+        if(empty($data['email']) || empty($data['first_name']) || empty($data['last_name']) || empty($data['password'])){
+            header("HTTP/1.0 400 Bad Request");
+            $response = array(
+                'status' => 'failed',
+                'message' => 'all feilds are required.'
+            );
+            return $response;
+        }
+        try {
+            $email = $data['email'];
+            $first_name = $data['first_name'];
+            $last_name = $data['last_name'];
+            $password = $data['password'];
+           
+
+            $stn = $this->pdo->prepare('SELECT * FROM `user` WHERE `email` = :email');
+            $stn->bindParam(':email', $email, PDO::PARAM_STR);
+            $stn->execute();
+            $row = $stn->fetch(PDO::FETCH_ASSOC);
+            
+            if($row){
+                header("HTTP/1.0 409 Conflict");
+                $response = array(
+                    'status' => 'failed',
+                    'message' => 'email already have registered and updated.'
+                );
+                return $response;
+            }
+
+            $stn = $this->pdo->prepare('INSERT INTO `user`(`first_name`, `last_name`, `email`, `password`) VALUES (:first_name, :last_name, :email, :password)');
+           
+            $stn->bindParam(':first_name', $first_name, PDO::PARAM_STR);
+            $stn->bindParam(':last_name', $last_name, PDO::PARAM_STR);
+            $stn->bindParam(':email', $email, PDO::PARAM_STR);
+            $stn->bindParam(':password', $password, PDO::PARAM_STR);
+            
+            $stn->execute();
+
+            if($stn){
+                $response = array(
+                    'status' => 'success',
+                    'message' => 'succesfully creared an acccount with us.',
+                    'email' => $email
+                );
+                return $response;
+            }else{
+                header("HTTP/1.0 500 Internal Server Error");
+                $response = array(
+                    'status' => 'failed',
+                    'message' => 'failed to upload details to the database.'
+                );
+                return $response;
+            }
+        } catch (PDOException $e) {
+            error_log("Database Error: " . $e->getMessage());
+    
+            $errorMessage = "A database error occurred. Please contact the administrator.";
+    
+            // return $e->getMessage();
+            return $this->generateErrorResponse($errorMessage);
+        }
+        
+    }
+
+    public function userLogin($data){
+        
+        if(empty($data['email']) || empty($data['password'])){
+            header("HTTP/1.0 400 Bad Request");
+            $response = array(
+                'status' => 'failed',
+                'message' => 'all feilds are required.'
+            );
+            return $response;
+        }
+        try {
+            $email = $data['email'];
+            $password = $data['password'];
+           
+
+            $stn = $this->pdo->prepare('SELECT * FROM `user` WHERE `email` = :email');
+            $stn->bindParam(':email', $email, PDO::PARAM_STR);
+            // $stn->bindParam(':password', $password, PDO::PARAM_STR);
+            $stn->execute();
+            $row = $stn->fetch(PDO::FETCH_ASSOC);
+            
+            if($row){
+                if($row["password"] === "$password"){
+                    return $row;
+                }else{
+                    header("HTTP/1.0 409 Conflict");
+                    $response = array(
+                        'status' => 'failed',
+                        'message' => 'credentials does not match.'
+                    );
+    
+                    return $response; 
+                }
+                
+            }else{
+                header("HTTP/1.0 409 Conflict");
+                $response = array(
+                    'status' => 'failed',
+                    'message' => 'Email does not exit kindly register.'
+                );
+
+                return $response;
+            }
+
+            
+        } catch (PDOException $e) {
+            error_log("Database Error: " . $e->getMessage());
+    
+            $errorMessage = "A database error occurred. Please contact the administrator.";
+    
+            // return $e->getMessage();
+            return $this->generateErrorResponse($errorMessage);
+        }
+        
+    }
+
     public function userProfileRegistration($data){
         
         if(empty($data['email']) || empty($data['country']) || empty($data['state']) || empty($data['address']) || empty($data['phoneNumber'])){
@@ -485,7 +607,7 @@ class model
     }
 
     public function adminPricing($data, $company_user_name){
-        if(empty($data["weight_price"]) || empty($data["space_price"]) || empty($data["distance_price"]) || empty($data["currency"])){
+        if(empty($data["weight_price"]) || empty($data["space_price"]) || empty($data["distance_price"]) || empty($data["currency"]) || empty($data["delivery_status"]) || empty($data["type_of_goods"])){
             header("HTTP/1.0 400 Bad Request");
             $response = array(
                 'status' => 'failed',
@@ -499,6 +621,8 @@ class model
             $space_price = $data["space_price"];
             $distance_price = $data["distance_price"];
             $currency = $data["currency"];
+            $delivery_status = $data["delivery_status"];
+            $type_of_goods = $data["type_of_goods"];
 
             $allAdminDetails = $this->getAdminDetailsById($company_user_name);
 
@@ -506,42 +630,22 @@ class model
             $company_email = $allAdminDetails["company_email"];
 
 
-            $stn = $this->pdo->prepare("SELECT * FROM `pricing` WHERE `company_user_name` = :company_user_name");
-            $stn->bindParam(':company_user_name', $company_user_name);
+            $stn = $this->pdo->prepare("SELECT * FROM `goods` WHERE `company_user_name` = :company_user_name AND `type_of_goods` = :type_of_goods");
+            $stn->bindParam(':company_user_name', $company_user_name, PDO::PARAM_STR);
+            $stn->bindParam(':type_of_goods', $type_of_goods, PDO::PARAM_STR);
             $stn->execute();
 
             $result = $stn->fetch(PDO::FETCH_ASSOC);
 
             if($result){
-                $stn = $this->pdo->prepare("UPDATE `pricing` SET `company_name` = :company_name, `company_email` = :company_email, `currency` = :currency, `weight_price` = :weight_price, `space_price` = :space_price, `distance_price` = :distance_price WHERE `company_user_name` = :company_user_name");
-                $stn->bindParam(':company_name', $company_name, PDO::PARAM_STR);
-                $stn->bindParam(':company_email', $company_email, PDO::PARAM_STR);
-                $stn->bindParam(':currency', $currency, PDO::PARAM_STR);
-                $stn->bindParam(':weight_price', $weight_price, PDO::PARAM_STR);
-                $stn->bindParam(':space_price', $space_price, PDO::PARAM_STR);
-                $stn->bindParam(':distance_price', $distance_price, PDO::PARAM_STR);
-                $stn->bindParam(':company_user_name', $company_user_name, PDO::PARAM_STR);
-                $stn->execute();
-
-                if($stn){
-                    $response = array(
-                        'status' => 'success',
-                        'message' => 'You have successfully updated your pricing system.'
-                    );
-
-                    return $response;
-                }else{
-                    
-                    header("HTTP/1.0 500 Internal Server Error");
-                    $response = array(
-                        'status' => 'failed',
-                        'message' => 'failed to update your pricing system.'
-                    );
-
-                    return $response;
-                }
+                $response = array(
+                    'status' => 'failed',
+                    'message' => 'this specific data already exist in the database'
+                );
+                
+                return $response;
             }else{
-                $stn = $this->pdo->prepare("INSERT INTO `pricing` (`company_user_name`, `company_name`, `company_email`, `currency`, `weight_price`, `space_price`, `distance_price`) VALUES (:company_user_name, :company_name, :company_email, :currency, :weight_price, :space_price, :distance_price)");
+                $stn = $this->pdo->prepare("INSERT INTO `goods` (`company_user_name`, `company_name`, `company_email`, `currency`, `weight_price`, `space_price`, `distance_price`, `delivery_status`, `type_of_goods`) VALUES (:company_user_name, :company_name, :company_email, :currency, :weight_price, :space_price, :distance_price, :delivery_status, :type_of_goods)");
 
                 $stn->bindParam(':company_user_name', $company_user_name, PDO::PARAM_STR);
                 $stn->bindParam(':company_name', $company_name, PDO::PARAM_STR);
@@ -550,12 +654,14 @@ class model
                 $stn->bindParam(':weight_price', $weight_price, PDO::PARAM_STR);
                 $stn->bindParam(':space_price', $space_price, PDO::PARAM_STR);
                 $stn->bindParam(':distance_price', $distance_price, PDO::PARAM_STR);
+                $stn->bindParam(':delivery_status', $delivery_status, PDO::PARAM_STR);
+                $stn->bindParam(':type_of_goods', $type_of_goods, PDO::PARAM_STR);
                 $stn->execute();
 
                 if($stn){
                     $response = array(
                         'status' => 'success',
-                        'message' => 'successfully added a pricong system.'
+                        'message' => 'successfully added a pricing system.'
                     );
 
                     return $response;
@@ -664,7 +770,7 @@ class model
         
     }
 
-    public function adminWithdraw($data, $company_user_name){
+    public function adminWithdraw($data, $company_data){
         if(empty($data["bank_name"]) || empty($data["bank_account"]) || empty($data["currency"]) || empty($data["amount"])){
             header("HTTP/1.0 400 Bad Request");
             $response = array(
@@ -679,8 +785,37 @@ class model
            $bank_account = $data["bank_account"];
            $currency = $data["currency"];
            $amount = $data["amount"];
+           $company_user_name = $company_data["company_user_name"];
+           $company_name = $company_data["company_name"];
+           $company_email = $company_data["company_email"];
 
-           $stn = $this->pdo->prepare("INSERT INTO `pricing`( `company_user_name`, `company_name`, `company_email`, `currency`, `weight_price`, `space_price`, `distance_price`) VALUES ('[value-1]','[value-2]','[value-3]','[value-4]','[value-5]','[value-6]','[value-7]','[value-8]')");
+           $stn = $this->pdo->prepare("INSERT INTO `pricing`( `company_user_name`, `company_name`, `company_email`, `currency`, `bank_name`, `bank_account`, `amount`) VALUES (:company_user_name, :company_name, :company_email, :currency, :bank_name, :bank_account, :amount)");
+           $stn->bindParam(':company_user_name', $company_user_name, PDO::PARAM_STR);
+           $stn->bindParam(':company_name', $company_name, PDO::PARAM_STR);
+           $stn->bindParam(':company_email', $company_email, PDO::PARAM_STR);
+           $stn->bindParam(':currency', $currency, PDO::PARAM_STR);
+           $stn->bindParam(':bank_name', $bank_name, PDO::PARAM_STR);
+           $stn->bindParam(':bank_account', $bank_account, PDO::PARAM_STR);
+           $stn->bindParam(':amount', $amount, PDO::PARAM_STR);
+           $stn->execute();
+
+            if($stn){
+                $response = array(
+                    'status' => 'success',
+                    'message' => 'uploaded successfully'
+                );
+
+                return $response;
+            }else{
+                header('HTTP/1.0 5O0 Internal Server Error');
+
+                $response = array(
+                    'status' => 'failed',
+                    'message' => 'failed to upload withdraw request'
+                );
+
+                return $response;
+            }
         } catch (PDOException $e) {
             error_log("Database Error: " . $e->getMessage());
     
@@ -689,6 +824,114 @@ class model
             return $e->getMessage();
             // return $this->generateErrorResponse($errorMessage);
         }
+    }
+
+    public function adminTransaction($company_data){
+        if(empty($company_data)){
+            $response  = array(
+                'status' => 'failed',
+                'message' => 'unable to connect to the adminTranaction model'
+            );
+        }
+        try {
+            $company_user_name = $company_data["company_user_name"];
+            $company_email = $company_data["company_email"];
+
+            $stn = $this->pdo->prepare("SELECT * FROM `withdraw` WHERE `company_user_name` = :company_user_name	 AND `company_email` = :company_email");
+            $stn->bindparam(':company_user_name', $company_user_name, PDO::PARAM_STR);
+            $stn->bindparam(':company_email', $company_email, PDO::PARAM_STR);
+            $stn->execute();
+            $result = $stn->fetchAll(PDO::FETCH_ASSOC);
+            if($result){
+                return $result;
+            }else{
+                header('HTTP/1.0 5O0 Internal Server Error');
+
+                $response = array(
+                    'status' => 'failed',
+                    'message' => 'failed to fetch details from database'
+                );
+
+                return $response;
+            }
+        } catch (PDOException $e) {
+            error_log("Database Error: " . $e->getMessage());
+    
+            $errorMessage = "A database error occurred. Please contact the administrator.";
+    
+            return $e->getMessage();
+            // return $this->generateErrorResponse($errorMessage);
+        } //throw $th;
+        
+    }
+
+    public function calculatorOne($data){
+        if(empty($data["good"])){
+            $response = array(
+                'status' => 'failed',
+                'message' => 'all feild are required'
+            );
+
+            return $response;
+        }
+
+        try {
+            $good = $data["good"];
+
+            $stn = $this->pdo->prepare("SELECT *FROM `goods` WHERE  `type_of_goods` = :type_of_goods");
+            $stn->bindParam(':type_of_goods', $good, PDO::PARAM_STR);
+            $stn->execute();
+            $result = $stn->fetchAll(PDO::FETCH_ASSOC);
+
+            // return $result;
+            if($result){
+                return $result;
+            }else{
+                header('HTTP/1.0 5O0 Internal Server Error');
+                $response = array(
+                    'status' => 'failed',
+                    'message' => 'no data found'
+                );
+
+                return $response;
+            }
+        } catch (PDOException $e) {
+            error_log("Database Error: " . $e->getMessage());
+    
+            $errorMessage = "A database error occurred. Please contact the administrator.";
+    
+            return $e->getMessage();
+            // return $this->generateErrorResponse($errorMessage);
+        }
+    }
+
+    public function calculatorTwo($id){
+        try {
+            $stn = $this->pdo->prepare("SELECT * FROM `goods` WHERE `id` = :id");
+            $stn->bindParam(':id', $id, PDO::PARAM_STR);
+            $stn->execute();
+            $result = $stn->fetch(PDO::FETCH_ASSOC);
+            if($result){
+                return $result;
+            }else{
+                $response = array(
+                    'status' => 'failed',
+                    'message' => 'failed to fetch data with this specific id.'
+                );
+                return $response;
+            }
+        }catch (PDOException $e) {
+            error_log("Database Error: " . $e->getMessage());
+    
+            $errorMessage = "A database error occurred. Please contact the administrator.";
+    
+            return $e->getMessage();
+            // return $this->generateErrorResponse($errorMessage);
+        }
+    }
+
+    public function checkout($good, $email, $price, $currency, $generateTrackingID, $company_user_name, $company_email){
+
     }
     
     protected function generateErrorResponse($message)
@@ -705,6 +948,13 @@ class model
     private function getAdminDetailsById($company_user_name) {
         $stmt = $this->pdo->prepare("SELECT * FROM `admin` WHERE `company_user_name` = :company_user_name");
         $stmt->bindParam(':company_user_name', $company_user_name, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    private function getUserDetailsById($id) {
+        $stmt = $this->pdo->prepare("SELECT * FROM `user` WHERE `id` = :id");
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }

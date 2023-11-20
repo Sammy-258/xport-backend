@@ -23,6 +23,34 @@
             }
         }
 
+        public function userRegistration($file, $data){
+            $userRegistration = new Model($this->pdo);
+            $userRegistration = $userRegistration->userRegistration($data);
+
+           
+            if($userRegistration){
+                session_start();
+                $_SESSION["user_data"] = $userRegistration;
+                echo json_encode($_SESSION["user_data"]);
+            }else{
+                echo json_encode($userRegistration);
+            }
+        }
+
+        public function userLogin($file, $data){
+            $userLogin = new model($this->pdo);
+            $userLogin = $userLogin->userLogin($data);
+
+           
+            if(empty($userLogin["status"])){
+                session_start();
+                $_SESSION["user_data"] = $userLogin;
+                echo json_encode($_SESSION["user_data"]);
+            }else{
+                echo json_encode($userLogin);
+            }
+        }
+
         public function userProfileRegistration($file, $data){
             $userProfileRegistration = new model($this->pdo);
             $userProfileRegistration = $userProfileRegistration->userProfileRegistration($data);
@@ -30,8 +58,8 @@
            
             if($userProfileRegistration){
                 session_start();
-                $_SESSION["user_data"] = $userProfileRegistration;
-                echo json_encode($_SESSION["user_data"]);
+                $_SESSION["user_profile"] = $userProfileRegistration;
+                echo json_encode($_SESSION["user_profile"]);
             }else{
                 echo json_encode($userProfileRegistration);
             }
