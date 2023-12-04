@@ -248,7 +248,7 @@
                 echo json_encode($calculatorOne);
             }else{
                 session_start();
-                $_SESSION["user_order_good"] = $data["good"];
+                $_SESSION['totalResult'] = $calculatorOne;
                 echo json_encode($calculatorOne);
             }
             
@@ -258,9 +258,9 @@
             session_start();
       
             if(isset($_SESSION["calculator"])){
-                $weight = intval($data["weight"]);
-                $space = intval($data["space"]);
-                $distance = intval($data["distance"]);
+                $weight = intval();
+                $space = intval();
+                $distance = intval();
 
                 $weight_price = intval($_SESSION["calculator"]["weight_price"]);
                 $space_price = intval($_SESSION["calculator"]["space_price"]);
@@ -297,41 +297,19 @@
         public function checkout($file, $data){
             session_start();
 
-            if(isset($_SESSION["user_data"])){
-                if(isset($_SESSION["calculated_price"])){
-                    $good = $_SESSION["user_order_good"];
-                    $email = $_SESSION["user_data"]["email"];
-                    $price = $_SESSION["calculated_price"]["total"];
-                    $currency = $data["currency"];
-                    $company_user_name = $_SESSION["calculator"]["company_user_name"];
-                    $company_email = $_SESSION["calculator"]["company_email"];
+            if(isset($_SESSION["checkout_data"])){
+                
+                $checkout_data = $_SESSION["checkout_data"];
+                   
+                $checkout = new Model($this->pdo);
+                $checkout = $checkout->checkout($checkout_data);
 
-                    $generateTrackingID  = $this->generateTrackingID($good, $email, $price);
+                
+                echo json_encode($checkout);
 
-                    // $checkout = new Model($thi->pdo);
-                    // $checkout = $checkout->checkout($good, $email, $price, $currency, $generateTrackingID, $company_user_name, $company_email);
+                unset($_SESSION['checkout_data']);
 
-                    $response = array(
-                        'good' => $good,
-                        'email' => $email,
-                        'price' => $price,
-                        'currency' => $currency,
-                        'company_user_name' => $company_user_name,
-                        'company_email' => $company_email
-                    );
-
-                    echo json_encode($response);
-
-
-                }else{
-                    header("HTTP/1.0 409 Conflict");
-                    $response = array(
-                        'status' => 'failed',
-                        'message' => 'kindly create a calculated method'
-                    );
-
-                    echo json_encode($response);
-                }
+               
                 
             }else{
                 header("HTTP/1.0 404 Not Found");

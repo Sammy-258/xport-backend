@@ -29,7 +29,7 @@ class Router
                         }else {
                             die("Controller not found");
                         }
-                    }elseif ($path==="/adminRegister" || $path==="/userRegistration") {
+                    }elseif ($path==="/adminRegister" || $path==="/userRegistration" || $path==="/userLogin") {
                         require_once("$controller.php");
                         if (class_exists($controller)) {
                             $controllerInstance = new $controller;
@@ -49,7 +49,7 @@ class Router
                             $controllerInstance = new $controller;
         
                             if (method_exists($controllerInstance, $action)) {
-                                $controllerInstance->$action($path, $_POST);
+                                $controllerInstance->$action($path, $_POST, $_FILES);
                                 exit();
                             } else {
                                 die("Action not found");

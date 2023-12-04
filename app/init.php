@@ -36,6 +36,7 @@ Router::post("/checkout", "postController", "checkout");
 
 // uer_get
 Router::get("/calculatorTwo", "viewController", "calculatorTwo");
+Router::get("/payOnDelivery", "viewController", "payOnDelivery");
 
 
 // super admin route

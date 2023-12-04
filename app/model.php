@@ -131,9 +131,9 @@ class model
         
     }
 
-    public function userProfileRegistration($data){
+    public function userProfileRegistration($data, $file){
         
-        if(empty($data['email']) || empty($data['country']) || empty($data['state']) || empty($data['address']) || empty($data['phoneNumber'])){
+        if(empty($data['email']) || empty($data['country']) || empty($data['state']) || empty($data['address']) || empty($data['phoneNumber']) || empty($data['language']) || empty($file["profileImage"]) || empty($file["idUpload"])){
             header("HTTP/1.0 400 Bad Request");
             $response = array(
                 'status' => 'failed',
@@ -147,6 +147,11 @@ class model
             $state = $data['state'];
             $address = $data['address'];
             $phoneNumber = $data['phoneNumber'];
+            $language = $data['language'];
+            $profileImage_name = $file['profileImage']['name'];
+            $profileImage_tmp_name = $file['profileImage']['tmp_name'];
+            $idUpload_name = $file['idUpload']['name'];
+            $idUpload_tmp_name = $file['idUpload']['tmp_name'];
 
             $stn = $this->pdo->prepare('SELECT * FROM `userprofile` WHERE `email` = :email');
             $stn->bindParam(':email', $email, PDO::PARAM_STR);
@@ -162,29 +167,52 @@ class model
                 return $response;
             }
 
-            $stn = $this->pdo->prepare('INSERT INTO `userprofile`(`email`, `country`, `state`, `address`, `phoneNumber`) VALUES (:email, :country, :state, :address, :phoneNumber)');
-            $stn->bindParam(':email', $email, PDO::PARAM_STR);
-            $stn->bindParam(':country', $country, PDO::PARAM_STR);
-            $stn->bindParam(':state', $state, PDO::PARAM_STR);
-            $stn->bindParam(':address', $address, PDO::PARAM_STR);
-            $stn->bindParam(':phoneNumber', $phoneNumber, PDO::PARAM_STR);
-            $stn->execute();
+            $storagePath = __DIR__ . '/../userProfile';
 
-            if($stn){
-                $response = array(
-                    'status' => 'success',
-                    'message' => 'succesfully uploaded to the database.',
-                    'email' => $email
-                );
-                return $response;
+            if (!is_dir($storagePath)) {
+                mkdir($storagePath, 0777, true);
+            }
+
+            $destination_profileImage = $storagePath . '/' . $profileImage_name;
+            $destination_idUpload = $storagePath . '/' . $idUpload_name;
+           
+
+            if(move_uploaded_file(            $profileImage_tmp_name, $destination_profileImage) && move_uploaded_file($idUpload_tmp_name, $destination_idUpload)){
+                $stn = $this->pdo->prepare('INSERT INTO `userprofile`(`email`, `country`, `state`, `address`, `phoneNumber`, `language`, `profileImage`, `idUpload`) VALUES (:email, :country, :state, :address, :phoneNumber, :language, :profileImage, :idUpload)');
+                $stn->bindParam(':email', $email, PDO::PARAM_STR);
+                $stn->bindParam(':country', $country, PDO::PARAM_STR);
+                $stn->bindParam(':state', $state, PDO::PARAM_STR);
+                $stn->bindParam(':address', $address, PDO::PARAM_STR);
+                $stn->bindParam(':phoneNumber', $phoneNumber, PDO::PARAM_STR);
+                $stn->bindParam(':language', $language, PDO::PARAM_STR);
+                $stn->bindParam(':profileImage', $profileImage_name, PDO::PARAM_STR);
+                $stn->bindParam(':idUpload', $idUpload_name, PDO::PARAM_STR);
+                $stn->execute();
+
+                if($stn){
+                    $response = array(
+                        'status' => 'success',
+                        'message' => 'succesfully uploaded to the database.',
+                        'email' => $email
+                    );
+                    return $response;
+                }else{
+                    header("HTTP/1.0 500 Internal Server Error");
+                    $response = array(
+                        'status' => 'failed',
+                        'message' => 'failed to upload details to the database.'
+                    );
+                    return $response;
+                }           
             }else{
                 header("HTTP/1.0 500 Internal Server Error");
-                $response = array(
-                    'status' => 'failed',
-                    'message' => 'failed to upload details to the database.'
-                );
-                return $response;
+                    $response = array(
+                        'status' => 'failed',
+                        'message' => 'failed to upload the files to the storage path.'
+                    );
+                    return $response; 
             }
+            
         } catch (PDOException $e) {
             error_log("Database Error: " . $e->getMessage());
     
@@ -529,7 +557,7 @@ class model
     }
 
     public function coverageArea($data, $company_user_name){
-        if(empty($data["area"]) || empty($data["country"]) || empty($data["state"])){
+        if(empty($data["area"]) || empty($data["country"]) || empty($data["state"]) || empty($data["type"])){
             header("HTTP/1.0 400 Bad Request");
             $response = array(
                 'status' => 'failed',
@@ -542,18 +570,21 @@ class model
             $country = $data["country"];
             $state = $data["state"];
             $company_user_name	= $company_user_name;
+            $type	= $type;
 
-            $stn = $this->pdo->prepare('SELECT * FROM `coverage` WHERE `company_user_name` = :company_user_name');
+            $stn = $this->pdo->prepare('SELECT * FROM `coverage` WHERE `company_user_name` = :company_user_name AND `type` = :type');
             $stn->bindParam(':company_user_name', $company_user_name, PDO::PARAM_STR);
+            $stn->bindParam(':type', $type, PDO::PARAM_STR);
             $stn->execute();
             $row = $stn->fetch(PDO::FETCH_ASSOC);
 
             if($row){
-                $stn = $this->pdo->prepare('UPDATE `coverage` SET `area` = :area, `country` = :country, `state` = :state WHERE `company_user_name` = :company_user_name');
+                $stn = $this->pdo->prepare('UPDATE `coverage` SET `area` = :area, `country` = :country, `state` = :state WHERE `company_user_name` = :company_user_name AND `type` = :type');
                 $stn->bindParam(':area', $area, PDO::PARAM_STR);
                 $stn->bindParam(':country', $country, PDO::PARAM_STR);
                 $stn->bindParam(':state', $state, PDO::PARAM_STR);
                 $stn->bindParam(':company_user_name', $company_user_name, PDO::PARAM_STR);
+                $stn->bindParam(':type', $type, PDO::PARAM_STR);
 
                 if($stn->execute()){
                     $response = array(
@@ -571,8 +602,9 @@ class model
                     return $response;
                 }
             }else{
-                $stn = $this->pdo->prepare('INSERT INTO `coverage`(`company_user_name`, `area`, `country`, `state`) VALUES (:company_user_name, :area, :country, :state)');
+                $stn = $this->pdo->prepare('INSERT INTO `coverage`(`company_user_name`, `type`, `area`, `country`, `state`) VALUES (:company_user_name, :type, :area, :country, :state)');
                 $stn->bindParam(':company_user_name', $company_user_name, PDO::PARAM_STR);
+                $stn->bindParam(':type', $type, PDO::PARAM_STR);
                 $stn->bindParam(':area', $area, PDO::PARAM_STR);
                 $stn->bindParam(':state', $state, PDO::PARAM_STR);
                 $stn->bindParam(':country', $country, PDO::PARAM_STR);
@@ -623,6 +655,7 @@ class model
             $currency = $data["currency"];
             $delivery_status = $data["delivery_status"];
             $type_of_goods = $data["type_of_goods"];
+            $tax_price = $data["tax_price"];
 
             $allAdminDetails = $this->getAdminDetailsById($company_user_name);
 
@@ -645,7 +678,7 @@ class model
                 
                 return $response;
             }else{
-                $stn = $this->pdo->prepare("INSERT INTO `goods` (`company_user_name`, `company_name`, `company_email`, `currency`, `weight_price`, `space_price`, `distance_price`, `delivery_status`, `type_of_goods`) VALUES (:company_user_name, :company_name, :company_email, :currency, :weight_price, :space_price, :distance_price, :delivery_status, :type_of_goods)");
+                $stn = $this->pdo->prepare("INSERT INTO `goods` (`company_user_name`, `company_name`, `company_email`, `currency`, `weight_price`, `space_price`, `distance_price`, `task_price`, `delivery_status`, `type_of_goods`) VALUES (:company_user_name, :company_name, :company_email, :currency, :weight_price, :space_price, :distance_price, :task_price, :delivery_status, :type_of_goods)");
 
                 $stn->bindParam(':company_user_name', $company_user_name, PDO::PARAM_STR);
                 $stn->bindParam(':company_name', $company_name, PDO::PARAM_STR);
@@ -654,6 +687,7 @@ class model
                 $stn->bindParam(':weight_price', $weight_price, PDO::PARAM_STR);
                 $stn->bindParam(':space_price', $space_price, PDO::PARAM_STR);
                 $stn->bindParam(':distance_price', $distance_price, PDO::PARAM_STR);
+                $stn->bindParam(':task_price', $task_price, PDO::PARAM_STR);
                 $stn->bindParam(':delivery_status', $delivery_status, PDO::PARAM_STR);
                 $stn->bindParam(':type_of_goods', $type_of_goods, PDO::PARAM_STR);
                 $stn->execute();
@@ -866,7 +900,7 @@ class model
     }
 
     public function calculatorOne($data){
-        if(empty($data["good"])){
+        if(empty($data["type"]) || empty($data["region_type"]) || empty($data["from"]) || empty($data["to"]) || empty($data["good"]) || empty($data["weight"]) || empty($data["space"]) || empty($data["distance"]) || empty($data["description"])){
             $response = array(
                 'status' => 'failed',
                 'message' => 'all feild are required'
@@ -875,26 +909,126 @@ class model
             return $response;
         }
 
+        $good = $data["good"];
+        $weight = $data['weight'];
+        $space = $data['space'];
+        $distance = $data['distance'];
+
         try {
-            $good = $data["good"];
+            $type = $data["type"];
+            $from = $data["from"];
+            $to = $data["to"];
 
-            $stn = $this->pdo->prepare("SELECT *FROM `goods` WHERE  `type_of_goods` = :type_of_goods");
-            $stn->bindParam(':type_of_goods', $good, PDO::PARAM_STR);
-            $stn->execute();
-            $result = $stn->fetchAll(PDO::FETCH_ASSOC);
+            // Step 1: Fetch company_user_names from the 'coverage' table
+            if ($data["region_type"] == "international") {
+                $stn1 = $this->pdo->prepare("
+                    SELECT DISTINCT company_user_name
+                    FROM coverage
+                    WHERE type = :type
+                    AND (
+                        (FIND_IN_SET(:from, country) AND FIND_IN_SET(:to, country))
+                    )
+                ");
+            } elseif ($data["region_type"] == "local") {
+                $stn1 = $this->pdo->prepare("
+                    SELECT DISTINCT company_user_name
+                    FROM coverage
+                    WHERE type = :type
+                    AND (
+                        (FIND_IN_SET(:from, state) > 0)
+                        AND
+                        (FIND_IN_SET(:to, state) > 0)
+                    )
+                ");
+            }            
+            
 
-            // return $result;
-            if($result){
-                return $result;
+            $stn1->bindParam(':type', $type, PDO::PARAM_STR);
+            $stn1->bindParam(':from', $from, PDO::PARAM_STR);
+            $stn1->bindParam(':to', $to, PDO::PARAM_STR);
+            $stn1->execute();
+            $companyUserNames = $stn1->fetchAll(PDO::FETCH_COLUMN);
+
+            // Step 2: Fetch data from another table using the obtained company_user_names
+            if (!empty($companyUserNames)) {
+                $placeholders = implode(',', array_fill(0, count($companyUserNames), '?'));
+
+                $stn2 = $this->pdo->prepare("
+                    SELECT *
+                    FROM goods
+                    WHERE company_user_name IN ($placeholders)
+                    AND type_of_goods = ?
+                ");
+
+                // Bind values for the IN clause
+                foreach ($companyUserNames as $key => $value) {
+                    $stn2->bindValue($key + 1, $value, PDO::PARAM_STR);
+                }
+
+                // Bind the :good parameter
+                $stn2->bindValue(count($companyUserNames) + 1, $good, PDO::PARAM_STR);
+
+                $stn2->execute();
+                $result = $stn2->fetchAll(PDO::FETCH_ASSOC);
+                if ($result) {
+                    $totalResult = array();
+            
+                    foreach ($result as $row) {
+                        // Extract values from the database
+                        $dbWeight = $row['weight_price'];
+                        $dbSpace = $row['space_price'];
+                        $dbDistance = $row['distance_price'];
+                        $dbTask = $row['task_price'];
+                        $currency = $row['currency'];
+                        $id = $row['id'];
+                        $company_name = $row['company_name'];
+                        $company_email = $row['company_email'];
+            
+                        // Perform calculations
+                        $resultValue = ($weight * $dbWeight) + ($space * $dbSpace) + ($distance * $dbDistance) + $dbTask;
+            
+                        // Fetch logo from the admin table
+                        $stn = $this->pdo->prepare("SELECT * FROM `admin` WHERE  `company_email` = :company_email");
+                        $stn->bindParam(':company_email', $company_email, PDO::PARAM_STR);
+                        $stn->execute();
+                        $logoResult = $stn->fetch(PDO::FETCH_ASSOC);
+            
+                        $logo = $logoResult ? $logoResult["logo"] : ''; // Handle the case where no logo is found
+            
+                        // Add the result and currency to the totalResult array
+                        $totalResult[] = array(
+                            'id' => $id,
+                            'good' => $good,
+                            'result' => $resultValue,
+                            'currency' => $currency,
+                            'company_name' => $company_name,
+                            'Logo' => $logo
+                        );
+                    }
+            
+                    // Return the total results
+                    return $totalResult;
+                } else {
+                    // Handle the case where no data is found
+                    return array(
+                        'status' => 'failed',
+                        'message' => 'no data found'
+                    );
+                }
             }else{
-                header('HTTP/1.0 5O0 Internal Server Error');
+                header("HTTP/1.0 404 Not Found");
                 $response = array(
                     'status' => 'failed',
-                    'message' => 'no data found'
+                    'message' => 'no data found.'
                 );
 
                 return $response;
             }
+            // return $companyUserNames;
+            
+
+
+
         } catch (PDOException $e) {
             error_log("Database Error: " . $e->getMessage());
     
@@ -930,7 +1064,87 @@ class model
         }
     }
 
-    public function checkout($good, $email, $price, $currency, $generateTrackingID, $company_user_name, $company_email){
+    public function checkout($data){
+        $email = $data['email'];
+        $tracking_id = $data['tracking_id'];
+        $good = $data['good'];
+        $price = $data['price'];
+        $currency = $data['currency'];
+        $company_user_name = $data['company_user_name'];
+        $company_name = $data['company_name'];
+        $company_email = $data['company_email'];
+        $paid_status = 1;
+
+        $stn = $this->pdo->prepare('INSERT INTO `user_order`(`email`, `tracking_id`, `good`, `price`, `currency`, `company_user_name`, `company_email`, `paid_status`) VALUES (:email, :tracking_id, :good, :price, :currency, :company_user_name, :company_email, :paid_status)');
+
+
+        $stn->bindParam(':email', $email, PDO::PARAM_STR);
+        $stn->bindParam(':tracking_id', $tracking_id, PDO::PARAM_STR);
+        $stn->bindParam(':good', $good, PDO::PARAM_STR);
+        $stn->bindParam(':price', $price, PDO::PARAM_STR);
+        $stn->bindParam(':currency', $currency, PDO::PARAM_STR);
+        $stn->bindParam(':company_user_name', $company_user_name, PDO::PARAM_STR);
+        $stn->bindParam(':company_email', $company_email, PDO::PARAM_STR);
+        $stn->bindParam(':paid_status', $paid_status, PDO::PARAM_STR);
+        
+                
+        if($stn->execute()){
+            $response = array(
+                'status'=>'success',
+                'message'=>"successfully placed an order with $company_name"
+            );
+
+            return $response;
+        }else{
+            header("HTTP/1.0 500 Internal Server Error");
+            $response = array(
+                'status' => 'failed',
+                'message' => "failed to place an order with $company_name."
+            );
+            return $response;
+        }
+
+    }
+
+    public function payOnDelivery($data){
+        $email = $data['email'];
+        $tracking_id = $data['tracking_id'];
+        $good = $data['good'];
+        $price = $data['price'];
+        $currency = $data['currency'];
+        $company_user_name = $data['company_user_name'];
+        $company_name = $data['company_name'];
+        $company_email = $data['company_email'];
+        $paid_status = 0;
+
+        $stn = $this->pdo->prepare('INSERT INTO `user_order`(`email`, `tracking_id`, `good`, `price`, `currency`, `company_user_name`, `company_email`, `paid_status`) VALUES (:email, :tracking_id, :good, :price, :currency, :company_user_name, :company_email, :paid_status)');
+
+
+        $stn->bindParam(':email', $email, PDO::PARAM_STR);
+        $stn->bindParam(':tracking_id', $tracking_id, PDO::PARAM_STR);
+        $stn->bindParam(':good', $good, PDO::PARAM_STR);
+        $stn->bindParam(':price', $price, PDO::PARAM_STR);
+        $stn->bindParam(':currency', $currency, PDO::PARAM_STR);
+        $stn->bindParam(':company_user_name', $company_user_name, PDO::PARAM_STR);
+        $stn->bindParam(':company_email', $company_email, PDO::PARAM_STR);
+        $stn->bindParam(':paid_status', $paid_status, PDO::PARAM_STR);
+        
+                
+        if($stn->execute()){
+            $response = array(
+                'status'=>'success',
+                'message'=>"successfully placed an order with $company_name"
+            );
+
+            return $response;
+        }else{
+            header("HTTP/1.0 500 Internal Server Error");
+            $response = array(
+                'status' => 'failed',
+                'message' => "failed to place an order with $company_name."
+            );
+            return $response;
+        }
 
     }
     

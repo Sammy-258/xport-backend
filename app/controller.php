@@ -24,10 +24,11 @@
         }
 
         public function userRegistration($file, $data){
+            
             $userRegistration = new Model($this->pdo);
             $userRegistration = $userRegistration->userRegistration($data);
 
-           
+        
             if($userRegistration){
                 session_start();
                 $_SESSION["user_data"] = $userRegistration;
@@ -35,6 +36,7 @@
             }else{
                 echo json_encode($userRegistration);
             }
+            
         }
 
         public function userLogin($file, $data){
@@ -51,17 +53,30 @@
             }
         }
 
-        public function userProfileRegistration($file, $data){
-            $userProfileRegistration = new model($this->pdo);
-            $userProfileRegistration = $userProfileRegistration->userProfileRegistration($data);
+        public function userProfileRegistration($file, $data, $image){
 
-           
-            if($userProfileRegistration){
-                session_start();
-                $_SESSION["user_profile"] = $userProfileRegistration;
-                echo json_encode($_SESSION["user_profile"]);
+            session_start();
+
+            if(isset($_SESSION["user_data"])){
+                $userProfileRegistration = new model($this->pdo);
+                $userProfileRegistration = $userProfileRegistration->userProfileRegistration($data, $image);
+
+            
+                if($userProfileRegistration){
+                    
+                    $_SESSION["user_profile"] = $userProfileRegistration;
+                    echo json_encode($_SESSION["user_profile"]);
+                }else{
+                    echo json_encode($userProfileRegistration);
+                }
             }else{
-                echo json_encode($userProfileRegistration);
+                header("HTTP/1.0 404 Not Found");
+                $response = array(
+                    'status' => 'failed',
+                    'message' => 'kindly register or login.'
+                );
+
+                echo json_encode($response);
             }
         }
 
@@ -71,6 +86,9 @@
 
             if($adminLogin){
                 session_start();
+                $company_user_name = $adminLogin["company_user_name"];
+                $company_email = $adminLogin["company_email"];
+                // $admindata = $admindata->admindata($)
                 $_SESSION["admin_data"] = $adminLogin;
                 echo json_encode($_SESSION["admin_data"]);
             }else{
