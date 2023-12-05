@@ -1065,87 +1065,250 @@ class model
     }
 
     public function checkout($data){
-        $email = $data['email'];
-        $tracking_id = $data['tracking_id'];
-        $good = $data['good'];
-        $price = $data['price'];
-        $currency = $data['currency'];
-        $company_user_name = $data['company_user_name'];
-        $company_name = $data['company_name'];
-        $company_email = $data['company_email'];
-        $paid_status = 1;
+        try {
+            $email = $data['email'];
+            $tracking_id = $data['tracking_id'];
+            $good = $data['good'];
+            $price = $data['price'];
+            $currency = $data['currency'];
+            $company_user_name = $data['company_user_name'];
+            $company_name = $data['company_name'];
+            $company_email = $data['company_email'];
+            $paid_status = 1;
 
-        $stn = $this->pdo->prepare('INSERT INTO `user_order`(`email`, `tracking_id`, `good`, `price`, `currency`, `company_user_name`, `company_email`, `paid_status`) VALUES (:email, :tracking_id, :good, :price, :currency, :company_user_name, :company_email, :paid_status)');
+
+            if(isset($email))
+            {
+                $email = $email;
+                $amount = $price;
+
+                //* Prepare our rave request
+                $request = [
+                    'tx_ref' => time(),
+                    'amount' => $amount,
+                    'currency' => 'NGN',
+                    'payment_options' => 'card',
+                    'redirect_url' => 'http://localhost/practice/proces.php',
+                    'customer' => [
+                        'email' => $email,
+                        'name' => 'Zubdev'
+                    ],
+                    'meta' => [
+                        'price' => $amount
+                    ],
+                    'customizations' => [
+                        'title' => 'Paying for a sample product',
+                        'description' => 'sample'
+                    ]
+                ];
+
+                //* Call Flutterwave endpoint
+                $curl = curl_init();
+
+                curl_setopt_array($curl, array(
+                    CURLOPT_URL => 'https://api.flutterwave.com/v3/payments',
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_ENCODING => '',
+                    CURLOPT_MAXREDIRS => 10,
+                    CURLOPT_TIMEOUT => 0,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                    CURLOPT_CUSTOMREQUEST => 'POST',
+                    CURLOPT_POSTFIELDS => json_encode($request),
+                    CURLOPT_HTTPHEADER => array(
+                        'Authorization: Bearer FLWSECK_TEST-d3037881afea3ae321539d57154cc25e-X',
+                        'Content-Type: application/json'
+                    ),
+                ));
+
+                $response = curl_exec($curl);
+
+                curl_close($curl);
+
+                $res = json_decode($response);
+                // return $res;
+                if($res->status == 'success')
+                {
+                    $link = $res->data->link;
+                    header('Location: '.$link);
+                }
+                else
+                {
+                    print_r($res);
+                }
+            }
+            elseif(isset($_GET['status']))
+            {
+                //* Check payment status
+                if($_GET['status'] == 'cancelled')
+                {
+                    // echo 'You cancelled the payment';
+                    header('Location: index.php');
+                }
+                elseif($_GET['status'] == 'successful')
+                {
+                    $txid = $_GET['transaction_id'];
+
+                    $curl = curl_init();
+                    curl_setopt_array($curl, array(
+                        CURLOPT_URL => "https://api.flutterwave.com/v3/transactions/{$txid}/verify",
+                        CURLOPT_RETURNTRANSFER => true,
+                        CURLOPT_ENCODING => "",
+                        CURLOPT_MAXREDIRS => 10,
+                        CURLOPT_TIMEOUT => 0,
+                        CURLOPT_FOLLOWLOCATION => true,
+                        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                        CURLOPT_CUSTOMREQUEST => "GET",
+                        CURLOPT_HTTPHEADER => array(
+                            "Content-Type: application/json",
+                            "Authorization: Bearer FLWSECK_TEST-d3037881afea3ae321539d57154cc25e-X"
+                        ),
+                    ));
+
+                    $response = curl_exec($curl);
+
+                    curl_close($curl);
+
+                    $res = json_decode($response);
+                    if($res->status)
+                    {
+                        $amountPaid = $res->data->charged_amount;
+                        $amountToPay = $res->data->meta->price;
+                        if($amountPaid >= $amountToPay)
+                        {
+                            // echo 'Payment successful';
+                            $stn = $this->pdo->prepare('INSERT INTO `user_order`(`email`, `tracking_id`, `good`, `price`, `currency`, `company_user_name`, `company_email`, `paid_status`) VALUES (:email, :tracking_id, :good, :price, :currency, :company_user_name, :company_email, :paid_status)');
 
 
-        $stn->bindParam(':email', $email, PDO::PARAM_STR);
-        $stn->bindParam(':tracking_id', $tracking_id, PDO::PARAM_STR);
-        $stn->bindParam(':good', $good, PDO::PARAM_STR);
-        $stn->bindParam(':price', $price, PDO::PARAM_STR);
-        $stn->bindParam(':currency', $currency, PDO::PARAM_STR);
-        $stn->bindParam(':company_user_name', $company_user_name, PDO::PARAM_STR);
-        $stn->bindParam(':company_email', $company_email, PDO::PARAM_STR);
-        $stn->bindParam(':paid_status', $paid_status, PDO::PARAM_STR);
-        
+                            $stn->bindParam(':email', $email, PDO::PARAM_STR);
+                            $stn->bindParam(':tracking_id', $tracking_id, PDO::PARAM_STR);
+                            $stn->bindParam(':good', $good, PDO::PARAM_STR);
+                            $stn->bindParam(':price', $price, PDO::PARAM_STR);
+                            $stn->bindParam(':currency', $currency, PDO::PARAM_STR);
+                            $stn->bindParam(':company_user_name', $company_user_name, PDO::PARAM_STR);
+                            $stn->bindParam(':company_email', $company_email, PDO::PARAM_STR);
+                            $stn->bindParam(':paid_status', $paid_status, PDO::PARAM_STR);
+                            
+                                    
+                            if($stn->execute()){
+                                $response = array(
+                                    'status'=>'success',
+                                    'message'=>"successfully placed an order with $company_name"
+                                );
                 
-        if($stn->execute()){
-            $response = array(
-                'status'=>'success',
-                'message'=>"successfully placed an order with $company_name"
-            );
+                                return $response;
+                            }else{
+                                header("HTTP/1.0 500 Internal Server Error");
+                                $response = array(
+                                    'status' => 'failed',
+                                    'message' => "failed to place an order with $company_name."
+                                );
+                                return $response;
+                            }
 
-            return $response;
-        }else{
-            header("HTTP/1.0 500 Internal Server Error");
-            $response = array(
-                'status' => 'failed',
-                'message' => "failed to place an order with $company_name."
-            );
-            return $response;
+                            //* Continue to give item to the user
+                        }
+                        else
+                        {
+                            // echo 'Fraudulent transaction detected';
+                            header("HTTP/1.0 500 Internal Server Error");
+                            $response = array(
+                                'status' => 'failed',
+                                'message' => "Fraudulent transaction detected"
+                            );
+                            return $response;
+                        }
+                    }
+                    else
+                    {
+                        // echo 'Cannot process payment';
+                        header("HTTP/1.0 500 Internal Server Error");
+                        $response = array(
+                            'status' => 'failed',
+                            'message' => "Cannot process payment"
+                        );
+                        return $response;
+                    }
+                }
+            }
+           
+
+            
+
+        }catch (PDOException $e) {
+            error_log("Database Error: " . $e->getMessage());
+    
+            $errorMessage = "A database error occurred. Please contact the administrator.";
+    
+            return $e->getMessage();
+            // return $this->generateErrorResponse($errorMessage);
         }
-
+        
     }
 
     public function payOnDelivery($data){
-        $email = $data['email'];
-        $tracking_id = $data['tracking_id'];
-        $good = $data['good'];
-        $price = $data['price'];
-        $currency = $data['currency'];
-        $company_user_name = $data['company_user_name'];
-        $company_name = $data['company_name'];
-        $company_email = $data['company_email'];
-        $paid_status = 0;
+        try {
+            $email = $data['email'];
+            $tracking_id = $data['tracking_id'];
+            $good = $data['good'];
+            $price = $data['price'];
+            $currency = $data['currency'];
+            $company_user_name = $data['company_user_name'];
+            $company_name = $data['company_name'];
+            $company_email = $data['company_email'];
+            $paid_status = 0;
 
-        $stn = $this->pdo->prepare('INSERT INTO `user_order`(`email`, `tracking_id`, `good`, `price`, `currency`, `company_user_name`, `company_email`, `paid_status`) VALUES (:email, :tracking_id, :good, :price, :currency, :company_user_name, :company_email, :paid_status)');
+            $stn = $this->pdo->prepare('INSERT INTO `user_order`(`email`, `tracking_id`, `good`, `price`, `currency`, `company_user_name`, `company_email`, `paid_status`) VALUES (:email, :tracking_id, :good, :price, :currency, :company_user_name, :company_email, :paid_status)');
 
 
-        $stn->bindParam(':email', $email, PDO::PARAM_STR);
-        $stn->bindParam(':tracking_id', $tracking_id, PDO::PARAM_STR);
-        $stn->bindParam(':good', $good, PDO::PARAM_STR);
-        $stn->bindParam(':price', $price, PDO::PARAM_STR);
-        $stn->bindParam(':currency', $currency, PDO::PARAM_STR);
-        $stn->bindParam(':company_user_name', $company_user_name, PDO::PARAM_STR);
-        $stn->bindParam(':company_email', $company_email, PDO::PARAM_STR);
-        $stn->bindParam(':paid_status', $paid_status, PDO::PARAM_STR);
-        
-                
-        if($stn->execute()){
-            $response = array(
-                'status'=>'success',
-                'message'=>"successfully placed an order with $company_name"
-            );
+            $stn->bindParam(':email', $email, PDO::PARAM_STR);
+            $stn->bindParam(':tracking_id', $tracking_id, PDO::PARAM_STR);
+            $stn->bindParam(':good', $good, PDO::PARAM_STR);
+            $stn->bindParam(':price', $price, PDO::PARAM_STR);
+            $stn->bindParam(':currency', $currency, PDO::PARAM_STR);
+            $stn->bindParam(':company_user_name', $company_user_name, PDO::PARAM_STR);
+            $stn->bindParam(':company_email', $company_email, PDO::PARAM_STR);
+            $stn->bindParam(':paid_status', $paid_status, PDO::PARAM_STR);
+            
+                    
+            if($stn->execute()){
+                $response = array(
+                    'status'=>'success',
+                    'message'=>"successfully placed an order with $company_name"
+                );
 
-            return $response;
-        }else{
-            header("HTTP/1.0 500 Internal Server Error");
-            $response = array(
-                'status' => 'failed',
-                'message' => "failed to place an order with $company_name."
-            );
-            return $response;
+                return $response;
+            }else{
+                header("HTTP/1.0 500 Internal Server Error");
+                $response = array(
+                    'status' => 'failed',
+                    'message' => "failed to place an order with $company_name."
+                );
+                return $response;
+            }
+
+        }catch (PDOException $e) {
+            error_log("Database Error: " . $e->getMessage());
+    
+            $errorMessage = "A database error occurred. Please contact the administrator.";
+    
+            return $e->getMessage();
+            // return $this->generateErrorResponse($errorMessage);
         }
+        
+    }
 
+    public function admindata($company_user_name, $company_email){
+        try {
+            // $stn = $this->pdo->prepare('')
+        }catch (PDOException $e) {
+            error_log("Database Error: " . $e->getMessage());
+    
+            $errorMessage = "A database error occurred. Please contact the administrator.";
+    
+            return $e->getMessage();
+            // return $this->generateErrorResponse($errorMessage);
+        }
     }
     
     protected function generateErrorResponse($message)

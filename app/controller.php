@@ -86,9 +86,11 @@
 
             if($adminLogin){
                 session_start();
-                $company_user_name = $adminLogin["company_user_name"];
-                $company_email = $adminLogin["company_email"];
-                // $admindata = $admindata->admindata($)
+                // $company_user_name = $adminLogin["company_user_name"];
+                // $company_email = $adminLogin["company_email"];
+                // $admindata = new model($this->pdo);
+                // $admindata = $admindata->admindata($company_user_name, $company_email);
+                
                 $_SESSION["admin_data"] = $adminLogin;
                 echo json_encode($_SESSION["admin_data"]);
             }else{
