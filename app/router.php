@@ -13,7 +13,10 @@ class Router
             }else{
                 $parent_uri = "/XPORT-BACKEND";
                 $local_uri = '#^'.$parent_uri.$path.'$#siD';
-                $other_uri = '#^'.$parent_uri.$path.'/(?:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})|([0-9]+))$#siD';
+                $other_uri = '#^' . $parent_uri . $path . '/(?:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})|([\w]+))$#siD';
+                
+
+                
                 if(preg_match($local_uri, $current_uri)){
                     if($path==="/"){
                         require_once("$controller.php");
@@ -103,6 +106,7 @@ class Router
                         die("Controller not found");
                     }
                     exit(); 
+                    
                 }
                 
             }

@@ -9,6 +9,8 @@ Router::post("/adminResetPassword", "postController", "adminResetPassword");
 Router::post("/adminResetPasswordSecond", "postController", "adminResetPasswordSecond");
 Router::post("/adminResetPasswordThird", "postController", "adminResetPasswordThird");
 Router::post("/coverageArea", "postController", "coverageArea");
+Router::post("/TrackingSystem", "postController", "TrackingSystem");
+Router::post("/successDelivery", "postController", "successDelivery");
 Router::post("/adminPricing", "postController", "adminPricing");
 Router::post("/adminAccount", "postController", "adminAccount");
 Router::post("/adminWithdraw", "postController", "adminWithdraw");
@@ -17,6 +19,7 @@ Router::post("/adminWithdraw", "postController", "adminWithdraw");
 
 // admin protected get
 Router::get("/adminTransaction", "viewController", "adminTransaction");
+Router::get("/adminOrder", "viewController", "adminOrder");
 
 
 // user route
@@ -37,6 +40,8 @@ Router::post("/checkout", "postController", "checkout");
 // uer_get
 Router::get("/calculatorTwo", "viewController", "calculatorTwo");
 Router::get("/payOnDelivery", "viewController", "payOnDelivery");
+Router::get("/trackingSystem", "viewController", "trackingSystem");
+Router::get("/userOrder", "viewController", "userOrder");
 
 
 // super admin route

@@ -50,7 +50,7 @@
                     );
                     echo json_encode($response);
                 }
-                echo json_encode();
+                // echo json_encode();
             }
         }
 
@@ -79,7 +79,7 @@
                     );
                     echo json_encode($response);
                 }
-                echo json_encode();
+               
             }
         }
 
@@ -253,7 +253,7 @@
             }
             
         }
-
+       
         public function mainCalculator($file, $data){
             session_start();
       
@@ -338,6 +338,25 @@
             $hashedTrackingID = hash('sha256', $concatenatedString);
         
             return $hashedTrackingID;
+        }
+
+        public function TrackingSystem($file, $data){
+            session_start();
+
+            if(isset($_SESSION["admin_data"])){
+                $company_data = $_SESSION["admin_data"];
+                $TrackingSystem = new Model($this->pdo);
+                $TrackingSystem = $TrackingSystem->TrackingSystem($data);
+
+                echo json_encode($TrackingSystem);
+            }else{
+                $response = array(
+                    'status' => 'failed',
+                    'message' => 'you are not an authenticated admin to access this route'
+                );
+
+                echo json_encode($response);
+            }
         }
     }
     

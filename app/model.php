@@ -24,6 +24,7 @@ class model
             $first_name = $data['first_name'];
             $last_name = $data['last_name'];
             $password = $data['password'];
+            $oauth_provider = "none";
            
 
             $stn = $this->pdo->prepare('SELECT * FROM `user` WHERE `email` = :email');
@@ -35,13 +36,14 @@ class model
                 header("HTTP/1.0 409 Conflict");
                 $response = array(
                     'status' => 'failed',
-                    'message' => 'email already have registered and updated.'
+                    'message' => 'email already have been registered and updated.'
                 );
                 return $response;
             }
 
-            $stn = $this->pdo->prepare('INSERT INTO `user`(`first_name`, `last_name`, `email`, `password`) VALUES (:first_name, :last_name, :email, :password)');
+            $stn = $this->pdo->prepare('INSERT INTO `user`(`oauth_provider`, `first_name`, `last_name`, `email`, `password`) VALUES (:oauth_provider, :first_name, :last_name, :email, :password)');
            
+            $stn->bindParam(':oauth_provider', $oauth_provider, PDO::PARAM_STR);
             $stn->bindParam(':first_name', $first_name, PDO::PARAM_STR);
             $stn->bindParam(':last_name', $last_name, PDO::PARAM_STR);
             $stn->bindParam(':email', $email, PDO::PARAM_STR);
@@ -1302,6 +1304,244 @@ class model
         try {
             // $stn = $this->pdo->prepare('')
         }catch (PDOException $e) {
+            error_log("Database Error: " . $e->getMessage());
+    
+            $errorMessage = "A database error occurred. Please contact the administrator.";
+    
+            return $e->getMessage();
+            // return $this->generateErrorResponse($errorMessage);
+        }
+    }
+
+    public function TrackingSystem($data){
+       
+        if( empty($data["tracking_id"]) || empty($data["good_name"]) || empty($data["header"]) || empty($data["email"]) || empty($data["description"])){
+            header("HTTP/1.0 400 Bad Request");
+            $response = array(
+                'status' => 'failed',
+                'message' => 'All feilds are required.'
+            );
+            return $response;
+        }
+        try {
+           
+            $tracking_id = $data["tracking_id"];
+            $good = $data["good_name"];
+            $header = $data["header"];
+            $description = $data["description"];
+            $email = $data["email"];
+
+            $stn = $this->pdo->prepare('SELECT * FROM `user_order` WHERE `tracking_id` = :tracking_id AND `good` = :good');
+            $stn->bindParam(':tracking_id', $tracking_id, PDO::PARAM_STR);
+            $stn->bindParam(':good', $good, PDO::PARAM_STR);
+            $stn->execute();
+            $row = $stn->fetch(PDO::FETCH_ASSOC);
+
+            if($row){
+                $stn = $this->pdo->prepare('SELECT * FROM `trackingsystem` WHERE `tracking_id` = :tracking_id ');
+                $stn->bindParam(':tracking_id', $tracking_id, PDO::PARAM_STR);
+               
+                $stn->execute();
+                $row = $stn->fetch(PDO::FETCH_ASSOC);
+
+                if($row){
+                    $former_header = $row["header"];
+                    $former_description = $row["description"];
+
+                    $concatenated_header = $header . ", " . $former_header;
+
+                    $concatenated_description = $description . ", " . $former_description;
+
+                    $stn = $this->pdo->prepare('UPDATE `trackingsystem` SET `header` = :header, `description` = :description  WHERE `tracking_id` = :tracking_id ');
+                    $stn->bindParam(':header', $concatenated_header, PDO::PARAM_STR);
+                    $stn->bindParam(':description', $concatenated_description, PDO::PARAM_STR);
+                    $stn->bindParam(':tracking_id', $tracking_id, PDO::PARAM_STR);
+
+                    if($stn->execute()){
+                        $response = array(
+                            'status'=>'success',
+                            'message'=>'Updated Tracking system'
+                        );
+    
+                        return $response;
+                    }else{
+                        header("HTTP/1.0 500 Internal Server Error");
+                        $response = array(
+                            'status' => 'failed',
+                            'message' => 'failed to update coverage details to the database.'
+                        );
+                        return $response;
+                    }
+
+                }else{
+                    $stn = $this->pdo->prepare('INSERT INTO `trackingsystem`( `tracking_id`, `email`, `good_name`, `header`, `description`) VALUES (:tracking_id, :email, :good_name, :header, :description)');
+           
+                   
+                    $stn->bindParam(':tracking_id', $tracking_id, PDO::PARAM_STR);
+                    $stn->bindParam(':email', $email, PDO::PARAM_STR);
+                    $stn->bindParam(':good_name', $good, PDO::PARAM_STR);
+                    $stn->bindParam(':header', $header, PDO::PARAM_STR);
+                    $stn->bindParam(':description', $description, PDO::PARAM_STR);
+                    
+                    $stn->execute();
+
+                    if($stn){
+                        $response = array(
+                            'status'=>'success',
+                            'message'=>'successfully created a tracking info for this good'
+                        );
+    
+                        return $response;
+                    }else{
+                        header("HTTP/1.0 500 Internal Server Error");
+                        $response = array(
+                            'status' => 'failed',
+                            'message' => 'failed to update coverage details to the database.'
+                        );
+                        return $response;
+                    }
+
+         
+                }
+
+
+
+                
+
+                
+            }else{
+                
+            
+                header("HTTP/1.0 400 Bad Request");
+                $response = array(
+                    'status' => 'failed',
+                    'message' => 'Invalid tracking_id and good.'
+                );
+                return $response;
+                
+            }
+
+            
+            
+        } catch (PDOException $e) {
+            error_log("Database Error: " . $e->getMessage());
+    
+            $errorMessage = "A database error occurred. Please contact the administrator.";
+    
+            return $e->getMessage();
+            // return $this->generateErrorResponse($errorMessage);
+        }
+    }
+
+    public function adminOrder($company_data){
+        if(empty($company_data)){
+            $response  = array(
+                'status' => 'failed',
+                'message' => 'unable to connect to the adminTranaction model'
+            );
+        }
+        try {
+            $company_user_name = $company_data["company_user_name"];
+            $company_email = $company_data["company_email"];
+
+            $stn = $this->pdo->prepare("SELECT * FROM `user_order` WHERE `company_user_name` = :company_user_name	 AND `company_email` = :company_email");
+            $stn->bindparam(':company_user_name', $company_user_name, PDO::PARAM_STR);
+            $stn->bindparam(':company_email', $company_email, PDO::PARAM_STR);
+            $stn->execute();
+            $result = $stn->fetchAll(PDO::FETCH_ASSOC);
+            if($result){
+                return $result;
+            }else{
+                header('HTTP/1.0 5O0 Internal Server Error');
+
+                $response = array(
+                    'status' => 'failed',
+                    'message' => 'failed to fetch details from database'
+                );
+
+                return $response;
+            }
+        } catch (PDOException $e) {
+            error_log("Database Error: " . $e->getMessage());
+    
+            $errorMessage = "A database error occurred. Please contact the administrator.";
+    
+            return $e->getMessage();
+            // return $this->generateErrorResponse($errorMessage);
+        } //throw $th;
+        
+    }
+
+    public function userOrder(){
+
+        try {
+            $user_email = $user_data["company_user_name"];
+            
+
+            $stn = $this->pdo->prepare("SELECT * FROM `user_order` WHERE `company_user_name` = :company_user_name	 AND `company_email` = :company_email");
+            $stn->bindparam(':company_user_name', $company_user_name, PDO::PARAM_STR);
+            $stn->bindparam(':company_email', $company_email, PDO::PARAM_STR);
+            $stn->execute();
+            $result = $stn->fetchAll(PDO::FETCH_ASSOC);
+            if($result){
+                return $result;
+            }else{
+                header('HTTP/1.0 5O0 Internal Server Error');
+
+                $response = array(
+                    'status' => 'failed',
+                    'message' => 'failed to fetch details from database'
+                );
+
+                return $response;
+            }
+        } catch (PDOException $e) {
+            error_log("Database Error: " . $e->getMessage());
+    
+            $errorMessage = "A database error occurred. Please contact the administrator.";
+    
+            return $e->getMessage();
+            // return $this->generateErrorResponse($errorMessage);
+        } //throw $th;
+        
+    }
+
+    public function trackingSystem_get($id){
+        if(empty($id)){
+            header("HTTP/1.0 400 Bad Request");
+            $response = array(
+                'status' => 'failed',
+                'message' => 'send a valid request with a valid trasanction id'
+            );
+            return $response;
+        }
+        try {
+           
+            $tracking_id = $id;
+            
+
+            $stn = $this->pdo->prepare('SELECT * FROM `trackingsystem` WHERE `tracking_id` = :tracking_id');
+            $stn->bindParam(':tracking_id', $tracking_id, PDO::PARAM_STR);
+            $stn->execute();
+            $row = $stn->fetch(PDO::FETCH_ASSOC);
+
+            if($row){
+                return $row;    
+            }else{
+                
+            
+                header("HTTP/1.0 400 Bad Request");
+                $response = array(
+                    'status' => 'failed',
+                    'message' => 'Invalid tracking_id.'
+                );
+                return $response;
+                
+            }
+
+            
+            
+        } catch (PDOException $e) {
             error_log("Database Error: " . $e->getMessage());
     
             $errorMessage = "A database error occurred. Please contact the administrator.";
